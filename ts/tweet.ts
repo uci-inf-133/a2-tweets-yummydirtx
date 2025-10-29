@@ -66,6 +66,35 @@ class Tweet {
             return "unknown";
         }
         //TODO: parse the activity type from the text of the tweet
+        // Pattern: "Just completed a 10.00 km run" or "Just posted a 5.00 mi walk"
+        // Find the activity type which comes after the distance unit (km/mi)
+        
+        let text = this.text;
+        
+        // Look for patterns like "km run", "mi walk", "km bike", etc.
+        let kmIndex = text.indexOf(" km ");
+        let miIndex = text.indexOf(" mi ");
+        
+        let startIndex = -1;
+        if (kmIndex !== -1 && miIndex !== -1) {
+            // Both exist, use the first one
+            startIndex = Math.min(kmIndex, miIndex) + 4; // +4 to skip " km " or " mi "
+        } else if (kmIndex !== -1) {
+            startIndex = kmIndex + 4;
+        } else if (miIndex !== -1) {
+            startIndex = miIndex + 4;
+        }
+        
+        if (startIndex !== -1) {
+            // Extract the activity type (word after km/mi)
+            let remainingText = text.substring(startIndex);
+            // Get the first word (activity type)
+            let activityMatch = remainingText.match(/^(\w+)/);
+            if (activityMatch) {
+                return activityMatch[1];
+            }
+        }
+        
         return "";
     }
 
@@ -74,6 +103,24 @@ class Tweet {
             return 0;
         }
         //TODO: prase the distance from the text of the tweet
+        // Pattern: "Just completed a 10.00 km run" or "Just posted a 5.00 mi walk"
+        
+        let text = this.text;
+        
+        // Look for number followed by km or mi
+        // Match patterns like "10.00 km" or "5.00 mi"
+        let kmMatch = text.match(/(\d+\.?\d*)\s*km/);
+        let miMatch = text.match(/(\d+\.?\d*)\s*mi/);
+        
+        if (kmMatch) {
+            // Convert km to miles (1 mi = 1.609 km, so divide by 1.609)
+            let km = parseFloat(kmMatch[1]);
+            return km / 1.609;
+        } else if (miMatch) {
+            // Already in miles
+            return parseFloat(miMatch[1]);
+        }
+        
         return 0;
     }
 
