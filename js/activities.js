@@ -127,87 +127,103 @@ function parseTweets(runkeeper_tweets) {
 	document.getElementById('weekdayOrWeekendLonger').innerText = 
 		weekdayAvg > weekendAvg ? 'weekdays' : 'weekends';
 	
-	// Create scatter plot visualization (non-aggregated)
+	// Create a single dynamic visualization with parameter binding
 	let distance_vis_spec = {
 		"$schema": "https://vega.github.io/schema/vega-lite/v5.json",
 		"description": "Distance by day of week for top 3 activities",
+		"params": [{
+			"name": "showMean",
+			"value": false
+		}],
 		"data": {
 			"values": top3Tweets
 		},
-		"mark": "point",
-		"encoding": {
-			"x": {
-				"field": "dayOfWeek",
-				"type": "nominal",
-				"title": "Day of Week",
-				"sort": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+		"transform": [{
+			"calculate": "showMean ? 'mean' : 'all'",
+			"as": "aggregationType"
+		}],
+		"layer": [
+			{
+				"transform": [{
+					"filter": "!showMean"
+				}],
+				"mark": "point",
+				"encoding": {
+					"x": {
+						"field": "dayOfWeek",
+						"type": "nominal",
+						"title": "Day of Week",
+						"sort": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+					},
+					"y": {
+						"field": "distance",
+						"type": "quantitative",
+						"title": "Distance (miles)"
+					},
+					"color": {
+						"field": "activity",
+						"type": "nominal",
+						"title": "Activity Type"
+					}
+				}
 			},
-			"y": {
-				"field": "distance",
-				"type": "quantitative",
-				"title": "Distance (miles)"
-			},
-			"color": {
-				"field": "activity",
-				"type": "nominal",
-				"title": "Activity Type"
+			{
+				"transform": [{
+					"filter": "showMean"
+				}, {
+					"aggregate": [{
+						"op": "mean",
+						"field": "distance",
+						"as": "meanDistance"
+					}],
+					"groupby": ["dayOfWeek", "activity"]
+				}],
+				"mark": {
+					"type": "point",
+					"size": 100
+				},
+				"encoding": {
+					"x": {
+						"field": "dayOfWeek",
+						"type": "nominal",
+						"title": "Day of Week",
+						"sort": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+					},
+					"y": {
+						"field": "meanDistance",
+						"type": "quantitative",
+						"title": "Distance (miles)"
+					},
+					"color": {
+						"field": "activity",
+						"type": "nominal",
+						"title": "Activity Type"
+					}
+				}
+			}
+		]
+	};
+	
+	// Embed the visualization and get the view
+	vegaEmbed('#distanceVis', distance_vis_spec, {
+		actions: false,
+		config: {
+			view: {
+				continuousWidth: 400,
+				continuousHeight: 300
 			}
 		}
-	};
-	vegaEmbed('#distanceVis', distance_vis_spec, {actions: false});
-	
-	// Create aggregated visualization (mean)
-	let distance_vis_spec_aggregated = {
-		"$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-		"description": "Average distance by day of week for top 3 activities",
-		"data": {
-			"values": top3Tweets
-		},
-		"mark": "bar",
-		"encoding": {
-			"x": {
-				"field": "dayOfWeek",
-				"type": "nominal",
-				"title": "Day of Week",
-				"sort": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-			},
-			"y": {
-				"field": "distance",
-				"type": "quantitative",
-				"title": "Average Distance (miles)",
-				"aggregate": "mean"
-			},
-			"color": {
-				"field": "activity",
-				"type": "nominal",
-				"title": "Activity Type"
-			},
-			"xOffset": {
-				"field": "activity"
-			}
-		}
-	};
-	vegaEmbed('#distanceVisAggregated', distance_vis_spec_aggregated, {actions: false});
-	
-	// Set up button to toggle between visualizations
-	// Initially hide the aggregated view
-	document.getElementById('distanceVisAggregated').style.display = 'none';
-	
-	document.getElementById('aggregate').addEventListener('click', function() {
-		let aggregatedVis = document.getElementById('distanceVisAggregated');
-		let scatterVis = document.getElementById('distanceVis');
+	}).then(result => {
+		const view = result.view;
 		
-		if (aggregatedVis.style.display === 'none') {
-			// Show aggregated, hide scatter
-			aggregatedVis.style.display = 'block';
-			scatterVis.style.display = 'none';
-			this.innerText = 'Show individual points';
-		} else {
-			// Show scatter, hide aggregated
-			aggregatedVis.style.display = 'none';
-			scatterVis.style.display = 'block';
-			this.innerText = 'Show means';
-		}
+		// Set up button to toggle the parameter
+		document.getElementById('aggregate').addEventListener('click', function() {
+			const currentValue = view.signal('showMean');
+			view.signal('showMean', !currentValue).runAsync();
+			
+			// Update button text
+			this.innerText = !currentValue ? 'Show individual points' : 'Show means';
+		});
 	});
 }
 
